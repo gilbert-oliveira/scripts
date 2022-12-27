@@ -1,0 +1,10 @@
+#! /bin/bash
+
+docker run --tty \
+  --interactive \
+  --rm \
+  --volume "$PWD":/app \
+  --user "$(id -u)":"$(id -g)" \
+  --workdir /app \
+  node:latest "$@"
+  
