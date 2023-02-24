@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Define as opções padrão
+PORTS=""
+TTY="--tty"
+INTERACTIVE="--interactive"
+REMOVE="--rm"
+VOLUME=""
+USER=""
+WORKDIR=""
+COMMAND=""
+# PORT_DOCKER=""
+PORT_LOCAL=""
+
+# Analisa os argumentos do comando
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -p|--port)
+      PORT_REGEX='([0-9]+):([0-9]+)'
+      if [[ $2 =~ $PORT_REGEX ]]; then
+        # PORT_DOCKER=${BASH_REMATCH[1]}
+        PORT_LOCAL=${BASH_REMATCH[2]}
+        PORTS="-p $2"
+      else
+        echo "Erro: a opção -p/--port deve ter um valor no formato 'PORTA_LOCAL:PORTA_DOCKER'"
+        exit 1
+      fi
+      shift
+      ;;
+    *)
+      COMMAND="$COMMAND $1"
+      ;;
+  esac
+  shift
+done
+
+if [[ "$PWD" != "/" ]]; then
+  VOLUME="--volume \"$PWD\":/app"
+  USER="--user \"\$(id -u)\":\"\$(id -g)\""
+  WORKDIR="--workdir /app"
+else
+  echo "Erro: não é possível executar o comando yarn na raiz do sistema de arquivos"
+  exit 1
+fi
+
+if [[ -z "$PORTS" ]]; then
+  COMMAND="docker run $TTY $INTERACTIVE $REMOVE $VOLUME $USER $WORKDIR node:latest yarn $COMMAND"
+else
+  COMMAND="docker run $PORTS $TTY $INTERACTIVE $REMOVE $VOLUME $USER $WORKDIR node:latest yarn $COMMAND --port $PORT_LOCAL --host"
+fi
+
+eval "$COMMAND"

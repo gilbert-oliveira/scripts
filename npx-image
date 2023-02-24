@@ -6,5 +6,5 @@ docker run --tty \
   --volume "$PWD":/app \
   --user "$(id -u)":"$(id -g)" \
   --workdir /app \
-  node:latest "$@"
+  node:latest npx "$@"
   
