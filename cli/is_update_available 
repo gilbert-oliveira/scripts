@@ -1,0 +1,55 @@
+#!/bin/bash
+
+is_update_available() {
+  local branch="main"  # Ou qualquer branch padrão que você utiliza
+
+  local remote="origin"
+  local remote_url="https://github.com/gilbert-oliveira/scripts.git"
+  local repo="gilbert-oliveira/scripts"
+  local api_url="https://api.github.com/repos/${repo}/commits/${branch}"
+
+  # Obtém o HEAD local. Se falhar, assume-se que há atualizações.
+  local local_head
+  local_head=$(git rev-parse $branch 2>/dev/null) || { echo "true"; return; }
+
+  # Obtém o HEAD remoto. Se nenhum comando adequado for encontrado, assume-se que há atualizações.
+  # Em qualquer outro erro, pula a atualização (a conexão pode estar down).
+  local remote_head
+  remote_head=$(
+    if command -v curl > /dev/null; then
+      curl --connect-timeout 2 -fsSL -H 'Accept: application/vnd.github.v3.sha' $api_url 2>/dev/null
+    elif command -v wget > /dev/null; then
+      wget -T 2 -O- --header='Accept: application/vnd.github.v3.sha' $api_url 2>/dev/null
+    elif command -v fetch > /dev/null; then
+      HTTP_ACCEPT='Accept: application/vnd.github.v3.sha' fetch -T 2 -o - $api_url 2>/dev/null
+    else
+      echo "false"; return
+    fi
+  ) || { echo "true"; return; }
+
+  # Remove aspas ao redor do hash SHA
+  remote_head=$(echo "$remote_head" | tr -d '"')
+
+  # Compara os HEADs locais e remotos (se forem iguais, não há atualizações).
+  [[ "$local_head" != "$remote_head" ]] || { echo "false"; return; }
+
+  # Se os HEADs locais e remotos não coincidirem, verifica se há um ancestral comum.
+  # Se a chamada merge-base falhar, $remote_head pode não ser baixado, então assume-se que há atualizações.
+  local base
+  base=$(cd "$repo_dir" && git merge-base $local_head $remote_head 2>/dev/null) || { echo "true"; return; }
+
+  # Se o ancestral comum ($base) não for $remote_head,
+  # o HEAD local é mais antigo que o HEAD remoto.
+  [[ $base != $remote_head ]] && echo "true" || echo "false"
+}
+
+is_update_available
+
+
+if [[ "$(is_update_available)" == "true" ]]; then
+  echo "Há atualizações disponíveis. Atualizando..."
+  git pull
+  echo "Atualizado com sucesso!"
+else
+  echo "Nenhuma atualização disponível."
+fi
